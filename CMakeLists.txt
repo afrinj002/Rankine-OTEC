@@ -1,0 +1,78 @@
+cmake_minimum_required(VERSION 3.20.2)
+project(RANKINE
+    LANGUAGES C CXX
+)
+
+# For Clang Tools
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Standards
+set(CMAKE_CXX_STANDARD              14)
+set(CMAKE_CXX_STANDARD_REQUIRED     ON)
+set(CMAKE_CXX_EXTENSIONS            OFF)
+
+# sources
+file(GLOB SOURCES source/*.cpp)
+add_executable(Rankine ${SOURCES})
+
+# CoolProp library
+find_library(coolprop_lib CoolProp)
+find_path(coolprop_include CoolProp.h)
+message(STATUS "CoolProp: ${coolprop_lib} ${coolprop_include}")
+
+# fmt library   
+find_path(fmtlib_include fmt/format.h)
+message(STATUS "fmtlib: ${fmtlib_include}")
+
+
+cmake_host_system_information(RESULT _host_name QUERY HOSTNAME)
+message("-- _host_name variable is set to: " ${_host_name})
+
+if(${_host_name} STREQUAL "apathak-Kudu-Pro" OR ${_host_name} STREQUAL "DESKTOP-VT0CGVQ")
+# hdf5 library
+     find_package(HDF5 REQUIRED C CXX)
+     message(STATUS "HDF5 found: ${HDF5_FOUND}")
+     message(STATUS "HDF5_INCLUDE_DIRS: ${HDF5_INCLUDE_DIRS}")
+     message(STATUS "HDF5_LIBRARIES: ${HDF5_LIBRARIES}")
+else()
+# hdf5 library
+     find_library(HDF5_LIBRARIES libhdf5.a)
+     find_path(HDF5_INCLUDE_DIRS hdf5.h)
+     message(STATUS "HDF5: ${HDF5_LIBRARIES} ${HDF5_INCLUDE_DIRS}")
+# mpi library
+     find_package(PkgConfig REQUIRED)
+     pkg_check_modules(MPI REQUIRED ompi)
+     message(STATUS "MPI include dirs: ${MPI_INCLUDE_DIRS}")
+     message(STATUS "MPI libraries: ${MPI_LIBRARIES}")
+     find_path(MPI_LIB_PATH libmpi.so)
+     message(STATUS "MPI lib path: ${MPI_LIB_PATH}")
+# linking lib dirs
+     target_link_directories(Rankine
+     PRIVATE ${MPI_LIB_PATH}
+)
+endif()
+
+target_link_libraries(Rankine
+    PRIVATE ${silo_lib}
+    PRIVATE ${HDF5_LIBRARIES}    
+    PRIVATE ${coolprop_lib} ${CMAKE_DL_LIBS}
+    )
+
+# linking include dirs
+target_include_directories(Rankine
+    PRIVATE ${coolprop_include}
+    PRIVATE ${silo_include}
+    PRIVATE ${fmtlib_include}
+    PRIVATE ${HDF5_INCLUDE_DIRS}
+    PRIVATE ${CMAKE_SOURCE_DIR}/headers
+    )
+
+if(NOT ${_host_name} STREQUAL "apathak-Kudu-Pro")
+target_link_libraries(Rankine
+    PRIVATE ${MPI_LIBRARIES}
+    z
+    )
+target_include_directories(Rankine                                                                                                                                                                       
+    PRIVATE ${MPI_INCLUDE_DIRS}
+    )
+endif()
